@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Notes</title>
+		<script src='//code.jquery.com/jquery-2.1.3.min.js'></script>
+		<script>
+		var cursorRange = document.createRange();
+
+		var cursorEl = document.createElement("span");
+		cursorEl.classList.add('blink');
+		cursorEl.classList.add('underline');
+		cursorEl.setAttribute("id", "cursor");
+
+		function to_plain(str) {
+			return nbsp2space(span2tab(br2nl(str)));
+		}
+
+		function to_fancy(str) {
+			return space2nbsp(tab2span(nl2br(str)));
+		}
+
+		function nl2br(str) {
+			return str.replace(/(?:\r\n|\r|\n)/g, '<br>');
+		}
+
+		function br2nl(str) {
+			return str.replace(/<br>/g, "\n");
+		}
+
+		function space2nbsp(str) {
+			var tmp =  str.replace(/ /g, "&nbsp;");
+			return tmp.replace(/n&nbsp;c/g, "n c");
+		}
+
+		function nbsp2space(str) {
+			return str.replace(/&nbsp;/g, " ");
+		}
+
+		function tab2span(str) {
+			return str.replace(/\t/g, "<span class='tab'></span>");	
+		}
+
+		function span2tab(str) {
+			return str.replace(/<span class="tab"><\/span>/g, "\t");
+		}
+
+		function add(str) {
+			$("#text").append(to_fancy(str));
+		}
+
+		function del() {
+			var html = $("#text").html();
+
+			if (html && html.length > 0) {
+				var text = to_plain(html);
+				var selection = getSel();
+
+				if (selection === null || selection.type != "Range") {
+					$("#text").html(to_fancy(text.substr(0, text.length - 1)));
+				} else {
+					var range = selection.getRangeAt(0);
+					range.deleteContents();
+					range.detach();
+				}
+			}
+		}
+
+		function getSel() {
+			var sel = null;
+
+			if (typeof document.selection != "undefined" && document.selection && document.selection.type == "Text") {
+				sel = document.selection;
+			} else if (window.getSelection && window.getSelection().rangeCount > 0) {
+				sel = window.getSelection();
+			}
+
+			return sel;
+		}
+
+		$(document).ready(function () {
+			// captures the regular keypresses
+			$("html").keypress(function (e) {
+				var keyCode = e.which;
+				var key = String.fromCharCode(e.which);
+
+				if (keyCode == 13) {
+					add("<br>");
+				} else {
+					add(key);
+				}
+			});
+
+			$(document).click(function (e) {
+				var sel = getSel();
+
+				if (sel.type == "Caret") {
+					// clear the old cursor
+					if ($("#cursor").hasClass("initial")) {
+						$("#cursor").remove();
+					} else {
+						var curVal = $("#cursor").html();
+						$("#cursor").replaceWith(curVal);
+					}
+
+					var range = sel.getRangeAt(0);
+	
+					cursorRange.setStartBefore(range.startContainer);
+					cursorRange.setEndAfter(range.endContainer);
+
+					if (cursorRange.toString().length == 1) {
+						cursorRange.surroundContents(cursorEl);
+					}
+				}
+			});
+
+			// we need to capture some characters on keydown, before the browser does
+			$(document).keydown(function (e) {
+				var keyCode = e.which;
+
+				if (e.which == 8 || e.which == 46) { // 8 is backspace, 46 is delete key
+					// remove the last letter in the typing
+					e.preventDefault();
+					del();
+				} else if (e.which == 9) {
+					e.preventDefault();
+					add("<span class='tab'></span>");
+				} else if (e.which == 35) {
+					// end key.  reposition the cursor at the end!
+				} else {
+					console.log(e.which);
+				}
+			});
+
+			// capture paste input
+			$(document).on('paste', function (e) {
+				var pasted = e.originalEvent.clipboardData.getData('Text');
+
+				add(pasted);	
+			});
+		});
+		</script>
+		<style>
+		#cursor {
+			display: inline;
+			margin: 0;
+			padding: 0;
+		}
+
+		#text {
+			display: inline;
+			margin: 0;
+			padding: 0;
+		}
+
+		.tab {
+			width: 30px;
+			display: inline-block;
+		}
+
+		.underline {
+			text-decoration: underline;
+		}
+
+		@-webkit-keyframes blink {
+			from {
+				opacity: 1.0;
+			}
+
+			to {
+				opacity: 0.0;
+			}
+		}
+
+		.blink {
+			-webkit-animation-name: blink;
+			-webkit-animation-iteration-count: infinite;
+			-webkit-animation-timing-function: cubic-bezier(1.0, 0, 0, 1.0);
+			-webkit-animation-duration: 0.5s;
+		}
+		</style>
+	</head>
+	<body>
+		<div id='main'>
+			<div id='text'></div>
+			<div id='cursor' class='blink initial'>_</div>
+		</div>
+	</body>
+</html>
